@@ -25,7 +25,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	// Add random Gaussian noise to each particle.
 	// NOTE: Consult particle_filter.h for more information about this method (and others in this file).
 
-	num_particles = 1000;
+	num_particles = 5000;
 
 	default_random_engine gen;
 
@@ -59,20 +59,22 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 
 	for(int i=0; i<num_particles; i++)
 	{
+		double new_x,new_y,new_theta;
 		if(yaw_rate == 0)
 		{
-			particles[i].x +=  velocity*cos(particles[i].theta)*delta_t;
-			particles[i].y +=  velocity*sin(particles[i].theta)*delta_t;
+			new_x = particles[i].x + velocity*cos(particles[i].theta)*delta_t;
+			new_x = particles[i].y + velocity*sin(particles[i].theta)*delta_t;
+			new_theta = particles[i].theta;
 		}
 		else
 		{
-			particles[i].x += (velocity/yaw_rate)*(sin(particles[i].theta + yaw_rate*delta_t) - sin(particles[i].theta));
-			particles[i].y += (velocity/yaw_rate)*(cos(particles[i].theta) - cos(particles[i].theta + yaw_rate*delta_t));
-			particles[i].theta += yaw_rate*delta_t; 
+			new_x = particles[i].x + (velocity/yaw_rate)*(sin(particles[i].theta + yaw_rate*delta_t) - sin(particles[i].theta));
+			new_y = particles[i].y + (velocity/yaw_rate)*(cos(particles[i].theta) - cos(particles[i].theta + yaw_rate*delta_t));
+			new_theta = particles[i].theta + yaw_rate*delta_t; 
 		}
-		normal_distribution<double> dist_x(particles[i].x, std_pos[0]);
-		normal_distribution<double> dist_y(particles[i].y, std_pos[1]);
-		normal_distribution<double> dist_theta(particles[i].theta, std_pos[2]);
+		normal_distribution<double> dist_x(new_x, std_pos[0]);
+		normal_distribution<double> dist_y(new_y, std_pos[1]);
+		normal_distribution<double> dist_theta(new_theta, std_pos[2]);
 
 		particles[i].x = dist_x(gen);
 		particles[i].y = dist_y(gen);
@@ -102,6 +104,19 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 	//   3.33
 	//   http://planning.cs.uiuc.edu/node99.html
 
+	 //  double highest_weight = -1.0;
+	 //  Particle best_particle;
+	 //  double weight_sum = 0.0;
+	 //  for (int i = 0; i < num_particles; ++i) {
+		// if (particles[i].weight > highest_weight) {
+		// 	highest_weight = particles[i].weight;
+		// 	best_particle = particles[i];
+		// }
+		// weight_sum += particles[i].weight;
+	 //  }
+	 //  cout << "highest w before update weights " << highest_weight << endl;
+	 //  cout << "average w before update weights" << weight_sum/num_particles << endl;
+
 	for(int i=0; i<particles.size();i++)
 	{
 		vector<LandmarkObs> trans_particle_obs;
@@ -112,6 +127,11 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 			transformed_map_obs.x = particles[i].x + observations[j].x*cos(particles[i].theta) - observations[j].y*sin(particles[i].theta);
 			transformed_map_obs.y = particles[i].y + observations[j].x*sin(particles[i].theta) + observations[j].y*cos(particles[i].theta);
 			trans_particle_obs.push_back(transformed_map_obs);
+		}
+		if(i == 0)
+		{
+			cout << "observations x: " << observations[0].x << " y:" <<  observations[0].y << endl;
+			cout << "transformed observations x: " << trans_particle_obs[0].x << " y:" <<  trans_particle_obs[0].y << endl;
 		}
 
 		vector<LandmarkObs> landmarks_in_range;
@@ -128,25 +148,31 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 			}
 		}
 
+		if(i == 0)
+		{
+			cout << "particle position x: " << particles[i].x << " y:" <<  particles[i].y << endl;
+			cout << "Landmark in range x: " << landmarks_in_range[0].x << " y:" <<  landmarks_in_range[0].y << endl;
+		}
+
 		for(int l=0; l<trans_particle_obs.size();l++)
 		{
 			LandmarkObs obs;
 			obs = trans_particle_obs[l];
-			double min_dist = sensor_range;
-			int assoc_landmark_id = map_landmarks.landmark_list.size();
+			double min_dist = dist(obs.x,obs.y,landmarks_in_range[0].x,landmarks_in_range[0].y);
+			int assoc_landmark_id = 0;
 			for(int m=0; m<landmarks_in_range.size();m++)
 			{
-				double euclidean_dist = dist(obs.x,obs.y,landmarks_in_range[m].x,landmarks_in_range[m].y)
+				double euclidean_dist = dist(obs.x,obs.y,landmarks_in_range[m].x,landmarks_in_range[m].y);
 				if(euclidean_dist < min_dist)
 				{
-					min_dist = sensor_range;
+					min_dist = euclidean_dist;
 					assoc_landmark_id = m;
 				}
 			}
 			trans_particle_obs[l].id = assoc_landmark_id;
 		}
 
-		particles[i].weight = 1.0
+		particles[i].weight = 1.0;
 		for(int n=0;n<trans_particle_obs.size();n++)
 		{
 
@@ -160,6 +186,18 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 		weights[i] = particles[i].weight;
 	}
 
+	 //  highest_weight = -1.0;
+	 //  weight_sum = 0.0;
+	 //  for (int i = 0; i < num_particles; ++i) {
+		// if (particles[i].weight > highest_weight) {
+		// 	highest_weight = particles[i].weight;
+		// 	best_particle = particles[i];
+		// }
+		// weight_sum += particles[i].weight;
+	 //  }
+	 //  cout << "highest w after update weights " << highest_weight << endl;
+	 //  cout << "average w after update weights" << weight_sum/num_particles << endl;
+
 }
 
 void ParticleFilter::resample() {
@@ -167,8 +205,21 @@ void ParticleFilter::resample() {
 	// NOTE: You may find std::discrete_distribution helpful here.
 	//   http://en.cppreference.com/w/cpp/numeric/random/discrete_distribution
 
+	// double highest_weight = -1.0;
+	//   Particle best_particle;
+	//   double weight_sum = 0.0;
+	//   for (int i = 0; i < num_particles; ++i) {
+	// 	if (particles[i].weight > highest_weight) {
+	// 		highest_weight = particles[i].weight;
+	// 		best_particle = particles[i];
+	// 	}
+	// 	weight_sum += particles[i].weight;
+	//   }
+	//   cout << "highest w before resample " << highest_weight << endl;
+	//   cout << "average w before resample" << weight_sum/num_particles << endl;
+
 	default_random_engine gen;
-	discrete_distribution<> dist(weights.begin(), weights.end());
+	discrete_distribution<int> dist(weights.begin(), weights.end());
 
 	vector<Particle> resample_particles;
 	for(int i=0; i<num_particles; i++)
@@ -177,6 +228,18 @@ void ParticleFilter::resample() {
 	}
 
 	particles = resample_particles;
+
+	// highest_weight = -1.0;
+	// weight_sum = 0.0;
+	//   for (int i = 0; i < num_particles; ++i) {
+	// 	if (particles[i].weight > highest_weight) {
+	// 		highest_weight = particles[i].weight;
+	// 		best_particle = particles[i];
+	// 	}
+	// 	weight_sum += particles[i].weight;
+	//   }
+	//   cout << "highest w after resample " << highest_weight << endl;
+	//   cout << "average w after resample" << weight_sum/num_particles << endl;
 
 }
 

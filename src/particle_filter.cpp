@@ -101,6 +101,65 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 	//   and the following is a good resource for the actual equation to implement (look at equation 
 	//   3.33
 	//   http://planning.cs.uiuc.edu/node99.html
+
+	for(int i=0; i<particles.size();i++)
+	{
+		vector<LandmarkObs> trans_particle_obs;
+		for(int j=0; j<observations.size(); j++)
+		{	
+			LandmarkObs transformed_map_obs;
+
+			transformed_map_obs.x = particles[i].x + observations[j].x*cos(particles[i].theta) - observations[j].y*sin(particles[i].theta);
+			transformed_map_obs.y = particles[i].y + observations[j].x*sin(particles[i].theta) + observations[j].y*cos(particles[i].theta);
+			trans_particle_obs.push_back(transformed_map_obs);
+		}
+
+		vector<LandmarkObs> landmarks_in_range;
+		for(int k=0; k<map_landmarks.landmark_list.size(); k++)
+		{
+			if(dist(particles[i].x,particles[i].y, map_landmarks.landmark_list[k].x_f, map_landmarks.landmark_list[k].y_f) < sensor_range)
+			{
+				LandmarkObs landmark_obs;
+				landmark_obs.id = map_landmarks.landmark_list[k].id_i;
+				landmark_obs.x = map_landmarks.landmark_list[k].x_f;
+				landmark_obs.y = map_landmarks.landmark_list[k].y_f;
+
+				landmarks_in_range.push_back(landmark_obs);
+			}
+		}
+
+		for(int l=0; l<trans_particle_obs.size();l++)
+		{
+			LandmarkObs obs;
+			obs = trans_particle_obs[l];
+			double min_dist = sensor_range;
+			int assoc_landmark_id = map_landmarks.landmark_list.size();
+			for(int m=0; m<landmarks_in_range.size();m++)
+			{
+				double euclidean_dist = dist(obs.x,obs.y,landmarks_in_range[m].x,landmarks_in_range[m].y)
+				if(euclidean_dist < min_dist)
+				{
+					min_dist = sensor_range;
+					assoc_landmark_id = m;
+				}
+			}
+			trans_particle_obs[l].id = assoc_landmark_id;
+		}
+
+		particles[i].weight = 1.0
+		for(int n=0;n<trans_particle_obs.size();n++)
+		{
+
+			double mu_x = landmarks_in_range[trans_particle_obs[n].id].x;
+			double mu_y = landmarks_in_range[trans_particle_obs[n].id].y;
+
+			double exp_a = pow((trans_particle_obs[n].x - mu_x),2)/(2*std_landmark[0]*std_landmark[0]);
+			double exp_b = pow((trans_particle_obs[n].y - mu_y),2)/(2*std_landmark[1]*std_landmark[1]);
+			particles[i].weight = particles[i].weight*((exp(-exp_a-exp_b))/(2*M_PI*std_landmark[0]*std_landmark[1]));
+		}
+		weights[i] = particles[i].weight;
+	}
+
 }
 
 void ParticleFilter::resample() {

@@ -127,8 +127,15 @@ int main()
 			}
 			weight_sum += particles[i].weight;
 		  }
+
+		  if(highest_weight == 0)
+		  {
+		  	cout << "Error" << endl;
+		  }
 		  cout << "highest w " << highest_weight << endl;
 		  cout << "average w " << weight_sum/num_particles << endl;
+
+		  cout << "Best particle x: " << best_particle.x << " y: " << best_particle.y << " theta: "<< best_particle.theta << endl;
 
           json msgJson;
           msgJson["best_particle_x"] = best_particle.x;

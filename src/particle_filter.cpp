@@ -28,11 +28,12 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	num_particles = 100;
 
 	default_random_engine gen;
-
+	// Creating the Gaussian distribution for particle position and heading
 	normal_distribution<double> dist_x(x, std[0]);
 	normal_distribution<double> dist_y(y, std[1]);
 	normal_distribution<double> dist_theta(theta, std[2]);
 
+	//Initializing the particles and their weights
 	for(int i=0; i<num_particles;i++)
 	{
 		Particle particle;
@@ -58,6 +59,7 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 	default_random_engine gen;
 	double eps = 0.0001;
 
+	// Predict the new position and heading of the particles based on the velocity and yaw rate measurements
 	for(int i=0; i<num_particles; i++)
 	{
 		double new_x,new_y,new_theta;
@@ -74,6 +76,7 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 			new_y = particles[i].y + (velocity/yaw_rate)*(cos(particles[i].theta) - cos(particles[i].theta + yaw_rate*delta_t));
 			new_theta = particles[i].theta + yaw_rate*delta_t; 
 		}
+		//Add Gaussian noise
 		normal_distribution<double> dist_x(new_x, std_pos[0]);
 		normal_distribution<double> dist_y(new_y, std_pos[1]);
 		normal_distribution<double> dist_theta(new_theta, std_pos[2]);
@@ -107,8 +110,11 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 	//   3.33
 	//   http://planning.cs.uiuc.edu/node99.html
 
+
+	
 	for(int i=0; i<particles.size();i++)
 	{
+		// Transforming the observations from local to map coordinates
 		vector<LandmarkObs> trans_particle_obs;
 		for(int j=0; j<observations.size(); j++)
 		{	
@@ -119,6 +125,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 			trans_particle_obs.push_back(transformed_map_obs);
 		}
 
+		// Finding the landmarks in range
 		vector<LandmarkObs> landmarks_in_range;
 		for(int k=0; k<map_landmarks.landmark_list.size(); k++)
 		{
@@ -133,11 +140,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 			}
 		}
 
-		if(i == 0)
-		{
-			cout << "Size of landmarks_in_range" << landmarks_in_range.size() <<endl;
-		}
-
+		// Find the associated landmarks for each observation
 		for(int l=0; l<trans_particle_obs.size();l++)
 		{
 			LandmarkObs obs;
@@ -156,6 +159,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 			trans_particle_obs[l].id = assoc_landmark_id;
 		}
 
+		// Updating weights based on multivariate gaussian distribution
 		particles[i].weight = 1.0;
 		for(int n=0;n<trans_particle_obs.size();n++)
 		{
